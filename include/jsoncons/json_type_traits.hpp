@@ -40,6 +40,7 @@ template <class Json, class T, class Enable=void>
 struct json_type_traits
 {
     static const bool is_compatible = false;
+    static const bool is_specialized = true;
 
     static bool is(const Json&)
     {
@@ -53,12 +54,19 @@ namespace detail {
 template<class Json, class T, class Enable = void>
 struct is_incompatible : std::false_type {};
 
-
-// is_incompatible
 template<class Json, class T>
 struct is_incompatible<Json,T,
     typename std::enable_if<!std::integral_constant<bool, json_type_traits<Json, T>::is_compatible>::value>::type
 > : std::true_type {};
+
+// is_unspecialized
+template<class Json, class T, class Enable = void>
+struct is_unspecialized : std::true_type {};
+
+template<class Json, class T>
+struct is_unspecialized<Json,T,
+    typename std::enable_if<!std::integral_constant<bool, json_type_traits<Json, T, void>::is_specialized>::value>::type
+> : std::false_type {};
 
 // is_compatible_string_type
 template<class Json, class T, class Enable=void>
@@ -529,8 +537,9 @@ struct json_type_traits<Json, std::vector<bool>::reference>
 
 template<class Json, typename T>
 struct json_type_traits<Json, T, 
-                        typename std::enable_if<detail::is_compatible_array_type<Json,T>::value && 
-                                                !detail::is_std_array<T>::value>::type>
+                        typename std::enable_if<detail::is_unspecialized<Json,T>::value &&
+                        detail::is_compatible_array_type<Json,T>::value && 
+                        !detail::is_std_array<T>::value>::type>
 {
     typedef typename std::iterator_traits<typename T::iterator>::value_type element_type;
     typedef typename Json::allocator_type allocator_type;
@@ -658,7 +667,8 @@ struct json_type_traits<Json, T,
 
 template<class Json, typename T>
 struct json_type_traits<Json, T, 
-                        typename std::enable_if<detail::is_compatible_object_type<Json,T>::value>::type
+                        typename std::enable_if<detail::is_unspecialized<Json,T>::value &&
+                        detail::is_compatible_object_type<Json,T>::value>::type
 >
 {
     typedef typename T::mapped_type mapped_type;
